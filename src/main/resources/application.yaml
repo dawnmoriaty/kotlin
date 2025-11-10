@@ -1,0 +1,30 @@
+ktor:
+  application:
+    modules:
+      - com.financial.ApplicationKt.module
+  deployment:
+    port: 8080
+jwt:
+  secret: "your-secret-key-change-this-in-production-min-256-bits"
+  issuer: "http://localhost:8080/"
+  audience: "financial-app-users"
+  realm: "FinancialApp"
+  expirationTime: 604800000
+
+
+database:
+  host: "localhost"
+  port: 5432
+  name: "financial_db_dev"
+  user: "root"
+  password: "123456"
+  maxPoolSize: 10
+  driver: "org.postgresql.Driver"
+  jdbcUrl: "jdbc:postgresql://${database.host}:${database.port}/${database.name}"
+
+cors:
+  allowedHosts: "localhost:3000,localhost:8080,127.0.0.1:3000"
+
+app:
+  environment: "development"
+  debugMode: true

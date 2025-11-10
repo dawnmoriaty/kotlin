@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: financial_postgres_db
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: financial_db_dev
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/db:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d financial_db_dev"]  # ← PHẢI DÙNG "root"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - financial_network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: financial_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@financial.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - financial_network
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+
+networks:
+  financial_network:
