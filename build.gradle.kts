@@ -48,4 +48,5 @@ dependencies {
 
     // Nếu IntelliJ chưa thêm Call Logging
     implementation("io.ktor:ktor-server-call-logging-jvm")
+    implementation("at.favre.lib:bcrypt:0.10.2")
 }
