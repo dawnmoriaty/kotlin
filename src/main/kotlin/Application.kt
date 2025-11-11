@@ -1,6 +1,11 @@
 package com.financial
 
 import com.financial.data.database.DatabaseFactory
+import com.financial.data.repository.impl.UserRepository
+import com.financial.data.repository.impl.RefreshTokenRepository
+import com.financial.domain.service.impl.AuthService
+import com.financial.domain.service.impl.JwtService
+import com.financial.domain.services.impl.PasswordService
 import com.financial.plugins.configureHTTP
 import com.financial.plugins.configureMonitoring
 import com.financial.plugins.configureRouting
@@ -30,9 +35,23 @@ fun Application.module() {
         password = dbPassword,
         maxPoolSize = dbMaxPoolSize
     )
-    configureMonitoring()
+    val jwtService = JwtService(
+        issuer = config.property("jwt.issuer").getString(),
+        audience = config.property("jwt.audience").getString(),
+        secret = config.property("jwt.secret").getString(),
+        accessTokenExpirationMs = config.property("jwt.expirationTime").getString().toLong()
+    )
+
+    val authService = AuthService(
+        userRepository = UserRepository(),
+        passwordService = PasswordService(),
+        jwtService = jwtService,
+        refreshTokenRepository = RefreshTokenRepository()
+    )
+
     configureSerialization()
-    configureSecurity()
+    configureSecurity(jwtService)
+    configureMonitoring()
     configureHTTP()
-    configureRouting()
+    configureRouting(authService)
 }

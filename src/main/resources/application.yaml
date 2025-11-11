@@ -10,6 +10,7 @@ jwt:
   audience: "financial-app-users"
   realm: "FinancialApp"
   expirationTime: 604800000
+  refreshTokenExpiration: 2592000000
 
 
 database:

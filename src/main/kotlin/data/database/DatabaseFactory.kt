@@ -1,8 +1,10 @@
 package com.financial.data.database
 
+import com.financial.data.database.tables.*
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 
@@ -30,12 +32,15 @@ object DatabaseFactory {
         val dataSource = HikariDataSource(config)
         Database.connect(dataSource)
 
-        // Test connection
+        // Test connection and create tables
         try {
             transaction {
+                // Create tables if not exist
+                SchemaUtils.create(Users, Profiles, Categories, Transactions, RefreshTokens)
                 exec("SELECT 1")
             }
             logger.info("✅ Connected to PostgreSQL: $name @ $host:$port")
+            logger.info("✅ Database tables created/verified")
         } catch (e: Exception) {
             logger.error("💥 Failed to connect to database", e)
             throw e

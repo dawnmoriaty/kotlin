@@ -1,0 +1,6 @@
+2025-11-11 01:38:19.367 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-11-11 01:38:19.638 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@61f3fbb8
+2025-11-11 01:38:19.640 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-11-11 01:38:19.753 [main] INFO  c.f.data.database.DatabaseFactory - ✅ Connected to PostgreSQL: financial_db_dev @ localhost:5432
+2025-11-11 01:38:20.323 [main] INFO  Application - Application started in 1.741 seconds.
+2025-11-11 01:38:20.562 [main] INFO  Application - Responding at http://127.0.0.1:8080

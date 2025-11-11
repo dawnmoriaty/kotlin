@@ -1,5 +1,7 @@
 package com.financial.domain.services.impl
 
+import at.favre.lib.crypto.bcrypt.BCrypt
+
 class PasswordService {
     fun hashPassword(plainText: String): String {
         return BCrypt.withDefaults().hashToString(12, plainText.toCharArray())
