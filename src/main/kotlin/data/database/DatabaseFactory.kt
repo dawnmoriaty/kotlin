@@ -26,6 +26,13 @@ object DatabaseFactory {
             this.username = user
             this.password = password
             this.maximumPoolSize = maxPoolSize
+            this.minimumIdle = 5
+            this.connectionTimeout = 30000 // 30 seconds
+            this.idleTimeout = 600000 // 10 minutes
+            this.maxLifetime = 1800000 // 30 minutes
+            this.connectionTestQuery = "SELECT 1"
+            this.leakDetectionThreshold = 60000 // 60 seconds
+            this.isAutoCommit = false
             validate()
         }
 

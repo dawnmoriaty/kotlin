@@ -2,7 +2,7 @@ package com.financial.data.model
 
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.util.UUID
+import java.util.*
 
 data class Profile(
     val userId: UUID,

@@ -46,6 +46,9 @@ dependencies {
     // Firebase Admin SDK - QUAN TRỌNG
     implementation("com.google.firebase:firebase-admin:9.2.0")
 
+    // MinIO S3 Client - For file/image storage
+    implementation("io.minio:minio:8.5.7")
+
     // Nếu IntelliJ chưa thêm Call Logging
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("at.favre.lib:bcrypt:0.10.2")

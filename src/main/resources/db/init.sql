@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Table: profiles
 -- =============================================
 CREATE TABLE IF NOT EXISTS profiles (
-                                        id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     full_name TEXT,
     avatar_url TEXT,
     phone TEXT,
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     bio TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
+);
 
 -- =============================================
 -- Table: categories
@@ -142,11 +142,11 @@ VALUES (
        ) ON CONFLICT DO NOTHING;
 
 -- Insert profile for test user
-INSERT INTO profiles (id, full_name, avatar_url)
+INSERT INTO profiles (user_id, full_name, avatar_url)
 SELECT id, 'Test User', 'https://example.com/avatar.jpg'
 FROM users
 WHERE email = 'testuser@gmail.com'
-    ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (user_id) DO NOTHING;
 
 -- Default categories for test user
 INSERT INTO categories (name, type, user_id, is_default)
