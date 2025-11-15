@@ -1,6 +1,34 @@
 version: '3.8'
 
 services:
+  # Application service for DevContainer
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: financial_app
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_NAME: financial_db_dev
+      DATABASE_USER: root
+      DATABASE_PASSWORD: 123456
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+    volumes:
+      - .:/workspace:cached
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - financial_network
+    command: ./gradlew run
+
   db:
     image: postgres:15-alpine
     container_name: financial_postgres_db
@@ -16,7 +44,7 @@ services:
       - ./src/main/resources/db:/docker-entrypoint-initdb.d
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U root -d financial_db_dev"]  # ← PHẢI DÙNG "root"
+      test: ["CMD-SHELL", "pg_isready -U root -d financial_db_dev"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,6 +52,18 @@ services:
       - financial_network
 
   pgadmin:
+    # ...existing code...
+
+  minio:
+    # ...existing code...
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+  minio_data:
+
+networks:
+  financial_network:
     image: dpage/pgadmin4:latest
     container_name: financial_pgadmin
     environment:
