@@ -49,6 +49,15 @@ dependencies {
     // MinIO S3 Client - For file/image storage
     implementation("io.minio:minio:8.5.7")
 
+    // Email support
+    implementation("org.apache.commons:commons-email:1.5")
+
+    // OAuth2 Client
+    implementation("io.ktor:ktor-client-core")
+    implementation("io.ktor:ktor-client-cio")
+    implementation("io.ktor:ktor-client-content-negotiation")
+    implementation("io.ktor:ktor-client-serialization")
+
     // Nếu IntelliJ chưa thêm Call Logging
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("at.favre.lib:bcrypt:0.10.2")

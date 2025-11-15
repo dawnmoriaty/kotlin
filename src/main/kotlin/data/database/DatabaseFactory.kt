@@ -43,7 +43,10 @@ object DatabaseFactory {
         try {
             transaction {
                 // Create tables if not exist
-                SchemaUtils.create(Users, Profiles, Categories, Transactions, RefreshTokens)
+                SchemaUtils.create(
+                    Users, Profiles, Categories, Transactions, RefreshTokens, PasswordResetTokens,
+                    Budgets, RecurringTransactions, Debts, DebtPayments
+                )
                 exec("SELECT 1")
             }
             logger.info("✅ Connected to PostgreSQL: $name @ $host:$port")

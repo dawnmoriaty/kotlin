@@ -79,6 +79,20 @@ CREATE TABLE IF NOT EXISTS transactions (
     );
 
 -- =============================================
+-- Table: password_reset_tokens
+-- =============================================
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    is_used BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CHECK (expires_at > created_at)
+);
+
+-- =============================================
 -- Indexes for performance
 -- =============================================
 

@@ -18,4 +18,7 @@ interface IUserRepository {
     ): User
     suspend fun update(user: User): User
     suspend fun delete(id: UUID): Boolean
+    suspend fun updatePassword(userId: UUID, newPasswordHash: String): Boolean
+    suspend fun linkGoogleAccount(userId: UUID, googleId: String): Boolean
+    suspend fun linkFacebookAccount(userId: UUID, facebookId: String): Boolean
 }

@@ -64,4 +64,22 @@ class UserRepository : IUserRepository {
         entity.delete()
         true
     }
+
+    override suspend fun updatePassword(userId: UUID, newPasswordHash: String): Boolean = newSuspendedTransaction {
+        val entity = UserEntity.findById(userId) ?: return@newSuspendedTransaction false
+        entity.passwordHash = newPasswordHash
+        true
+    }
+
+    override suspend fun linkGoogleAccount(userId: UUID, googleId: String): Boolean = newSuspendedTransaction {
+        val entity = UserEntity.findById(userId) ?: return@newSuspendedTransaction false
+        entity.idGoogle = googleId
+        true
+    }
+
+    override suspend fun linkFacebookAccount(userId: UUID, facebookId: String): Boolean = newSuspendedTransaction {
+        val entity = UserEntity.findById(userId) ?: return@newSuspendedTransaction false
+        entity.idFacebook = facebookId
+        true
+    }
 }

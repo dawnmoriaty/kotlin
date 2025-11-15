@@ -1,13 +1,7 @@
 package com.financial.plugins
 
-import com.financial.domain.services.IAuthService
-import com.financial.domain.services.ICategoryService
-import com.financial.domain.services.ITransactionService
-import com.financial.domain.services.IUserService
-import com.financial.routes.authRoutes
-import com.financial.routes.categoryRoutes
-import com.financial.routes.transactionRoutes
-import com.financial.routes.userRoutes
+import com.financial.domain.services.*
+import com.financial.routes.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -16,7 +10,10 @@ fun Application.configureRouting(
     authService: IAuthService,
     userService: IUserService,
     categoryService: ICategoryService,
-    transactionService: ITransactionService
+    transactionService: ITransactionService,
+    budgetService: IBudgetService,
+    recurringTransactionService: IRecurringTransactionService,
+    debtService: IDebtService
 ) {
     routing {
         get("/") {
@@ -26,5 +23,8 @@ fun Application.configureRouting(
         userRoutes(userService)
         categoryRoutes(categoryService)
         transactionRoutes(transactionService)
+        budgetRoutes(budgetService)
+        recurringTransactionRoutes(recurringTransactionService)
+        debtRoutes(debtService)
     }
 }

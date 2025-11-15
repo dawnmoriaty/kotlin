@@ -1,5 +1,6 @@
 package com.financial.domain.service.impl
 
+import com.financial.data.database.tables.PasswordResetTokens
 import com.financial.data.model.User
 import com.financial.data.repository.IProfileRepository
 import com.financial.data.repository.IRefreshTokenRepository
@@ -7,13 +8,24 @@ import com.financial.data.repository.IUserRepository
 import com.financial.domain.exceptions.AuthException
 import com.financial.domain.services.IAuthService
 import com.financial.domain.services.ICategoryService
+import com.financial.domain.services.IEmailService
 import com.financial.domain.services.IJwtService
 import com.financial.domain.services.impl.PasswordService
 import com.financial.dtos.AuthResult
 import com.financial.dtos.LoginRequest
 import com.financial.dtos.RegisterRequest
 import com.financial.dtos.response.UserResponse
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.request.*
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.sql.update
 import java.time.Instant
+import java.util.*
 
 class AuthService(
     private val userRepository: IUserRepository,
@@ -21,7 +33,9 @@ class AuthService(
     private val jwtService: IJwtService,
     private val refreshTokenRepository: IRefreshTokenRepository,
     private val profileRepository: IProfileRepository,
-    private val categoryService: ICategoryService
+    private val categoryService: ICategoryService,
+    private val emailService: IEmailService,
+    private val httpClient: HttpClient
 ) : IAuthService {
 
     override suspend fun register(registerRequest: RegisterRequest): AuthResult {
@@ -67,26 +81,52 @@ class AuthService(
         return createAuthResult(user)
     }
 
-    override suspend fun loginWithGoogle(googleId: String, email: String, username: String): AuthResult {
-        var user = userRepository.findByGoogleId(googleId)
+    override suspend fun loginWithGoogle(idToken: String): AuthResult {
+        // Verify Google ID Token
+        val googleUserInfo = verifyGoogleToken(idToken)
+
+        var user = userRepository.findByGoogleId(googleUserInfo.sub)
         if (user == null) {
-            user = userRepository.create(username = username, email = email, idGoogle = googleId)
-            // ✅ Create profile for new Google user
-            profileRepository.create(user.id)
-            // ✅ Create default categories
-            categoryService.createDefaultCategories(user.id)
+            // Check if email already exists
+            user = userRepository.findByEmail(googleUserInfo.email)
+            if (user != null) {
+                // Link Google account to existing user
+                userRepository.linkGoogleAccount(user.id, googleUserInfo.sub)
+            } else {
+                // Create new user
+                user = userRepository.create(
+                    username = googleUserInfo.email.substringBefore("@"),
+                    email = googleUserInfo.email,
+                    idGoogle = googleUserInfo.sub
+                )
+                profileRepository.create(user.id)
+                categoryService.createDefaultCategories(user.id)
+            }
         }
         return createAuthResult(user)
     }
 
-    override suspend fun loginWithFacebook(facebookId: String, email: String, username: String): AuthResult {
-        var user = userRepository.findByFacebookId(facebookId)
+    override suspend fun loginWithFacebook(accessToken: String): AuthResult {
+        // Verify Facebook Access Token
+        val facebookUserInfo = verifyFacebookToken(accessToken)
+
+        var user = userRepository.findByFacebookId(facebookUserInfo.id)
         if (user == null) {
-            user = userRepository.create(username = username, email = email, idFacebook = facebookId)
-            // ✅ Create profile for new Facebook user
-            profileRepository.create(user.id)
-            // ✅ Create default categories
-            categoryService.createDefaultCategories(user.id)
+            // Check if email already exists
+            user = userRepository.findByEmail(facebookUserInfo.email)
+            if (user != null) {
+                // Link Facebook account to existing user
+                userRepository.linkFacebookAccount(user.id, facebookUserInfo.id)
+            } else {
+                // Create new user
+                user = userRepository.create(
+                    username = facebookUserInfo.name.replace(" ", "_").lowercase(),
+                    email = facebookUserInfo.email,
+                    idFacebook = facebookUserInfo.id
+                )
+                profileRepository.create(user.id)
+                categoryService.createDefaultCategories(user.id)
+            }
         }
         return createAuthResult(user)
     }
@@ -129,6 +169,77 @@ class AuthService(
         return true
     }
 
+    override suspend fun forgotPassword(email: String): Boolean {
+        // Find user by email
+        val user = userRepository.findByEmail(email) ?: throw AuthException("Email không tồn tại")
+
+        // Check if user has password (not OAuth only)
+        if (user.passwordHash == null) {
+            throw AuthException("Tài khoản này sử dụng đăng nhập mạng xã hội. Vui lòng đăng nhập bằng Google hoặc Facebook.")
+        }
+
+        // Generate reset token
+        val resetToken = UUID.randomUUID().toString()
+        val expiresAt = Instant.now().plusSeconds(15 * 60) // 15 minutes
+
+        // Save reset token to database
+        newSuspendedTransaction {
+            PasswordResetTokens.insert {
+                it[userId] = user.id
+                it[token] = resetToken
+                it[PasswordResetTokens.expiresAt] = expiresAt
+                it[isUsed] = false
+            }
+        }
+
+        // Send email
+        val emailSent = emailService.sendPasswordResetEmail(
+            toEmail = user.email,
+            resetToken = resetToken,
+            userName = user.username
+        )
+
+        if (!emailSent) {
+            throw AuthException("Không thể gửi email đặt lại mật khẩu")
+        }
+
+        return true
+    }
+
+    override suspend fun resetPassword(token: String, newPassword: String): Boolean {
+        // Find token in database
+        val resetTokenData = newSuspendedTransaction {
+            PasswordResetTokens.select { PasswordResetTokens.token eq token }
+                .singleOrNull()
+        } ?: throw AuthException("Token không hợp lệ hoặc đã hết hạn")
+
+        // Check if token is used
+        if (resetTokenData[PasswordResetTokens.isUsed]) {
+            throw AuthException("Token đã được sử dụng")
+        }
+
+        // Check if token is expired
+        if (resetTokenData[PasswordResetTokens.expiresAt].isBefore(Instant.now())) {
+            throw AuthException("Token đã hết hạn")
+        }
+
+        // Get user ID
+        val userId = resetTokenData[PasswordResetTokens.userId]
+
+        // Update password
+        val hashedPassword = passwordService.hashPassword(newPassword)
+        userRepository.updatePassword(userId, hashedPassword)
+
+        // Mark token as used
+        newSuspendedTransaction {
+            PasswordResetTokens.update({ PasswordResetTokens.token eq token }) {
+                it[isUsed] = true
+            }
+        }
+
+        return true
+    }
+
     private suspend fun createAuthResult(user: User): AuthResult {
         // 1. Convert User to UserResponse
         val userResponse = UserResponse(
@@ -162,5 +273,50 @@ class AuthService(
             accessToken = accessToken,
             refreshToken = refreshToken
         )
+    }
+
+    // Helper methods for OAuth2
+    @Serializable
+    private data class GoogleUserInfo(
+        val sub: String,
+        val email: String,
+        val name: String,
+        @SerialName("email_verified") val emailVerified: Boolean
+    )
+
+    @Serializable
+    private data class FacebookUserInfo(
+        val id: String,
+        val email: String,
+        val name: String
+    )
+
+    private suspend fun verifyGoogleToken(idToken: String): GoogleUserInfo {
+        try {
+            val response: GoogleUserInfo = httpClient.get("https://oauth2.googleapis.com/tokeninfo") {
+                parameter("id_token", idToken)
+            }.body()
+
+            if (!response.emailVerified) {
+                throw AuthException("Email chưa được xác thực")
+            }
+
+            return response
+        } catch (e: Exception) {
+            throw AuthException("Google ID token không hợp lệ: ${e.message}")
+        }
+    }
+
+    private suspend fun verifyFacebookToken(accessToken: String): FacebookUserInfo {
+        try {
+            val response: FacebookUserInfo = httpClient.get("https://graph.facebook.com/me") {
+                parameter("access_token", accessToken)
+                parameter("fields", "id,email,name")
+            }.body()
+
+            return response
+        } catch (e: Exception) {
+            throw AuthException("Facebook access token không hợp lệ: ${e.message}")
+        }
     }
 }

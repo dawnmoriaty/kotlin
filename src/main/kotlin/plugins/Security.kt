@@ -1,12 +1,14 @@
 package com.financial.plugins
 
 import com.auth0.jwt.JWT
+import com.financial.domain.exceptions.AuthException
 import com.financial.domain.service.impl.JwtService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
 import io.ktor.server.response.respond
+import java.util.*
 
 fun Application.configureSecurity(jwtService: JwtService) {
     install(Authentication) {
@@ -28,4 +30,13 @@ fun Application.configureSecurity(jwtService: JwtService) {
             }
         }
     }
+}
+
+// Extension function to get userId from JWT
+fun ApplicationCall.getUserId(): UUID {
+    val principal = principal<JWTPrincipal>()
+        ?: throw AuthException("No principal found")
+    val userId = principal.payload.getClaim("userId").asString()
+        ?: throw AuthException("No userId in token")
+    return UUID.fromString(userId)
 }

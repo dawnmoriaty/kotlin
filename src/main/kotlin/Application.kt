@@ -1,26 +1,18 @@
 package com.financial
 
 import com.financial.data.database.DatabaseFactory
-import com.financial.data.repository.impl.UserRepository
-import com.financial.data.repository.impl.RefreshTokenRepository
-import com.financial.data.repository.impl.ProfileRepository
-import com.financial.data.repository.impl.CategoryRepository
-import com.financial.data.repository.impl.TransactionRepository
-import com.financial.domain.service.impl.AuthService
-import com.financial.domain.service.impl.CategoryService
-import com.financial.domain.service.impl.JwtService
-import com.financial.domain.service.impl.TransactionService
-import com.financial.domain.service.impl.UserService
-import com.financial.domain.service.impl.MinioStorageService
+import com.financial.data.repository.impl.*
+import com.financial.domain.service.impl.*
 import com.financial.domain.services.impl.PasswordService
-import com.financial.plugins.configureHTTP
-import com.financial.plugins.configureMonitoring
-import com.financial.plugins.configureRouting
-import com.financial.plugins.configureSecurity
-import com.financial.plugins.configureSerialization
-import com.financial.plugins.configureStatusPages
+import com.financial.domain.services.impl.EmailService
+import com.financial.plugins.*
 import io.ktor.server.application.*
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.serialization.kotlinx.json.*
 import io.minio.MinioClient
+import kotlinx.serialization.json.Json
 
 fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)
@@ -49,6 +41,28 @@ fun Application.module() {
         audience = config.property("jwt.audience").getString(),
         secret = config.property("jwt.secret").getString(),
         accessTokenExpirationMs = config.property("jwt.expirationTime").getString().toLong()
+    )
+
+    // HTTP Client for OAuth2
+    val httpClient = HttpClient(CIO) {
+        install(ContentNegotiation) {
+            json(Json {
+                ignoreUnknownKeys = true
+                prettyPrint = true
+                isLenient = true
+            })
+        }
+    }
+
+    // Email Service Setup
+    val emailService = EmailService(
+        smtpHost = config.propertyOrNull("email.smtp.host")?.getString() ?: "smtp.gmail.com",
+        smtpPort = config.propertyOrNull("email.smtp.port")?.getString()?.toIntOrNull() ?: 465,
+        smtpUsername = config.propertyOrNull("email.username")?.getString() ?: "",
+        smtpPassword = config.propertyOrNull("email.password")?.getString() ?: "",
+        fromEmail = config.propertyOrNull("email.from")?.getString() ?: "noreply@financial.app",
+        fromName = config.propertyOrNull("email.fromName")?.getString() ?: "Financial App",
+        frontendUrl = config.propertyOrNull("app.frontendUrl")?.getString() ?: "http://localhost:3000"
     )
 
     // MinIO Client Setup
@@ -81,7 +95,9 @@ fun Application.module() {
         jwtService = jwtService,
         refreshTokenRepository = RefreshTokenRepository(),
         profileRepository = ProfileRepository(),
-        categoryService = categoryService
+        categoryService = categoryService,
+        emailService = emailService,
+        httpClient = httpClient
     )
 
     val userService = UserService(
@@ -91,10 +107,29 @@ fun Application.module() {
         storageService = storageService
     )
 
+    // Budget Service
+    val budgetService = BudgetService(
+        budgetRepository = BudgetRepository(),
+        categoryRepository = CategoryRepository()
+    )
+
+    // Recurring Transaction Service
+    val recurringTransactionService = RecurringTransactionService(
+        recurringTransactionRepository = RecurringTransactionRepository(),
+        categoryRepository = CategoryRepository(),
+        transactionRepository = TransactionRepository()
+    )
+
+    // Debt Service
+    val debtService = DebtService(
+        debtRepository = DebtRepository(),
+        debtPaymentRepository = DebtPaymentRepository()
+    )
+
     configureSerialization()
     configureStatusPages()
     configureSecurity(jwtService)
     configureMonitoring()
     configureHTTP()
-    configureRouting(authService, userService, categoryService, transactionService)
+    configureRouting(authService, userService, categoryService, transactionService, budgetService, recurringTransactionService, debtService)
 }

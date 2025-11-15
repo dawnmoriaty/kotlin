@@ -30,9 +30,19 @@ minio:
   bucketName: "financial-app"
   publicUrl: "http://localhost:9000/financial-app"
 
+email:
+  smtp:
+    host: "smtp.gmail.com"
+    port: 465
+  username: "your-email@gmail.com"  # Change this to your Gmail
+  password: "your-app-password"      # Use Gmail App Password
+  from: "noreply@financial.app"
+  fromName: "Financial App"
+
 cors:
   allowedHosts: "localhost:3000,localhost:8080,127.0.0.1:3000"
 
 app:
   environment: "development"
   debugMode: true
+  frontendUrl: "http://localhost:3000"  # Frontend URL for reset password link
